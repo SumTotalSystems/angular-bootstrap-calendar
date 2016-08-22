@@ -5,14 +5,7 @@
  * @license MIT
  */
 (function webpackUniversalModuleDefinition(root, factory) {
-	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("angular"), require("moment"), (function webpackLoadOptionalExternalModule() { try { return require("interact.js"); } catch(e) {} }()));
-	else if(typeof define === 'function' && define.amd)
-		define(["angular", "moment", "interact"], factory);
-	else if(typeof exports === 'object')
-		exports["angularBootstrapCalendarModuleName"] = factory(require("angular"), require("moment"), (function webpackLoadOptionalExternalModule() { try { return require("interact.js"); } catch(e) {} }()));
-	else
-		root["angularBootstrapCalendarModuleName"] = factory(root["angular"], root["moment"], root["interact"]);
+    root["angularBootstrapCalendarModuleName"] = factory(root["angular"], root["moment"], root["interact"]);
 })(this, function(__WEBPACK_EXTERNAL_MODULE_12__, __WEBPACK_EXTERNAL_MODULE_28__, __WEBPACK_EXTERNAL_MODULE_52__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
