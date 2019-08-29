@@ -13,12 +13,13 @@
     'cal-day-past': day.isPast,
     'cal-day-today': day.isToday,
     'cal-day-future': day.isFuture,
-    'cal-day-selected': vm.dateRangeSelect && vm.dateRangeSelect.startDate <= day.date && day.date <= vm.dateRangeSelect.endDate
+    'cal-day-selected': vm.dateRangeSelect && vm.dateRangeSelect.startDate <= day.date && day.date <= vm.dateRangeSelect.endDate,
+    'cal-day-open': dayIndex === vm.openDayIndex
   }">
 
   <small
     class="cal-events-num badge badge-important pull-left"
-    ng-show="day.badgeTotal > 0"
+    ng-show="day.badgeTotal > 0 && (vm.calendarConfig.displayAllMonthEvents || day.inMonth)"
     ng-bind="day.badgeTotal">
   </small>
 
@@ -36,7 +37,7 @@
 
   <ng-include src="vm.customTemplateUrls.calendarMonthCellEvents || vm.calendarConfig.templates.calendarMonthCellEvents"></ng-include>
 
-  <div id="cal-week-box" ng-if="$first && rowHovered">
+  <div class="cal-week-box-cell" ng-if="$first && rowHovered">
     <span ng-bind="vm.getWeekNumberLabel(day)"></span>
   </div>
 

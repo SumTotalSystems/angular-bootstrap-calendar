@@ -94,12 +94,17 @@ angular
       }).length;
     }
 
-    function getWeekDayNames() {
-      var weekdays = [];
-      var count = 0;
-      while (count < 7) {
-        weekdays.push(formatDate(moment().weekday(count++), calendarConfig.dateFormats.weekDay));
-      }
+    function getWeekDayNames(excluded) {
+      var weekdays = [0, 1, 2, 3, 4, 5, 6]
+      .filter(function(wd) {
+        return !(excluded || []).some(function(ex) {
+          return ex === wd;
+        });
+      })
+      .map(function(i) {
+        return formatDate(moment().weekday(i), calendarConfig.dateFormats.weekDay);
+      });
+
       return weekdays;
     }
 
@@ -131,20 +136,34 @@ angular
 
     }
 
-    function getMonthView(events, viewDate, cellModifier) {
+    function updateEventForCalendarUtils(event, eventPeriod) {
+      event.start = eventPeriod.start.toDate();
+      if (event.endsAt) {
+        event.end = eventPeriod.end.toDate();
+      }
+      return event;
+    }
+
+    function getMonthView(events, viewDate, cellModifier, excluded) {
 
       // hack required to work with the calendar-utils api
       events.forEach(function(event) {
-        event.start = event.startsAt;
-        event.end = event.endsAt;
+        var eventPeriod = getRecurringEventPeriod({
+          start: moment(event.startsAt),
+          end: moment(event.endsAt || event.startsAt)
+        }, event.recursOn, moment(viewDate).startOf('month'));
+        updateEventForCalendarUtils(event, eventPeriod);
       });
 
       var view = calendarUtils.getMonthView({
         events: events,
-        viewDate: viewDate
+        viewDate: viewDate,
+        excluded: excluded,
+        weekStartsOn: moment().startOf('week').day()
       });
 
       view.days = view.days.map(function(day) {
+        day.date = moment(day.date);
         day.label = day.date.date();
         day.badgeTotal = getBadgeTotal(day.events);
         if (!calendarConfig.displayAllMonthEvents && !day.inMonth) {
@@ -164,11 +183,14 @@ angular
 
     }
 
-    function getWeekView(events, viewDate) {
+    function getWeekView(events, viewDate, excluded) {
 
       var days = calendarUtils.getWeekViewHeader({
-        viewDate: viewDate
+        viewDate: viewDate,
+        excluded: excluded,
+        weekStartsOn: moment().startOf('week').day()
       }).map(function(day) {
+        day.date = moment(day.date);
         day.weekDayLabel = formatDate(day.date, calendarConfig.dateFormats.weekDay);
         day.dayLabel = formatDate(day.date, calendarConfig.dateFormats.day);
         return day;
@@ -179,21 +201,29 @@ angular
 
       var eventRows = calendarUtils.getWeekView({
         viewDate: viewDate,
+        weekStartsOn: moment().startOf('week').day(),
+        excluded: excluded,
         events: filterEventsInPeriod(events, startOfWeek, endOfWeek).map(function(event) {
 
           var weekViewStart = moment(startOfWeek).startOf('day');
 
           var eventPeriod = getRecurringEventPeriod({
-            start: moment(event.startsAt).startOf('day'),
-            end: moment(event.endsAt || event.startsAt).startOf('day').add(1, 'second')
+            start: moment(event.startsAt),
+            end: moment(event.endsAt || event.startsAt)
           }, event.recursOn, weekViewStart);
 
-          eventPeriod.originalEvent = event;
+          var calendarUtilsEvent = {
+            originalEvent: event,
+            start: eventPeriod.start.toDate()
+          };
 
-          return eventPeriod;
+          if (event.endsAt) {
+            calendarUtilsEvent.end = eventPeriod.end.toDate();
+          }
 
+          return calendarUtilsEvent;
         })
-      }).map(function(eventRow) {
+      }).eventRows.map(function(eventRow) {
 
         eventRow.row = eventRow.row.map(function(rowEvent) {
           rowEvent.event = rowEvent.event.originalEvent;
@@ -208,16 +238,18 @@ angular
 
     }
 
-    function getDayView(events, viewDate, dayViewStart, dayViewEnd, dayViewSplit) {
+    function getDayView(events, viewDate, dayViewStart, dayViewEnd, dayViewSplit, dayViewEventWidth, dayViewSegmentSize) {
 
       var dayStart = (dayViewStart || '00:00').split(':');
       var dayEnd = (dayViewEnd || '23:59').split(':');
 
       var view = calendarUtils.getDayView({
         events: events.map(function(event) { // hack required to work with event API
-          event.start = event.startsAt;
-          event.end = event.endsAt;
-          return event;
+          var eventPeriod = getRecurringEventPeriod({
+            start: moment(event.startsAt),
+            end: moment(event.endsAt || event.startsAt)
+          }, event.recursOn, moment(viewDate).startOf('day'));
+          return updateEventForCalendarUtils(event, eventPeriod);
         }),
         viewDate: viewDate,
         hourSegments: 60 / dayViewSplit,
@@ -229,8 +261,8 @@ angular
           hour: dayEnd[0],
           minute: dayEnd[1]
         },
-        eventWidth: 150,
-        segmentHeight: 30
+        eventWidth: dayViewEventWidth ? +dayViewEventWidth : 150,
+        segmentHeight: dayViewSegmentSize || 30
       });
 
       // remove hack to work with new event API
@@ -271,20 +303,23 @@ angular
           return {
             event: event,
             top: dayEvent.top,
-            offset: calendarUtils.getDayOffset(
-              {start: event.startsAt, end: event.endsAt},
-              moment(viewDate).startOf('week')
-            )
+            offset: calendarUtils.getWeekViewEventOffset({
+              event: {
+                start: event.startsAt,
+                end: event.endsAt
+              },
+              startOfWeek: moment(viewDate).startOf('week').toDate()
+            })
           };
         })
       }];
       return weekView;
     }
 
-    function getDayViewHeight(dayViewStart, dayViewEnd, dayViewSplit) {
+    function getDayViewHeight(dayViewStart, dayViewEnd, dayViewSplit, dayViewSegmentSize) {
       var dayViewStartM = moment(dayViewStart || '00:00', 'HH:mm');
       var dayViewEndM = moment(dayViewEnd || '23:59', 'HH:mm');
-      var hourHeight = (60 / dayViewSplit) * 30;
+      var hourHeight = (60 / dayViewSplit) * (dayViewSegmentSize || 30);
       return ((dayViewEndM.diff(dayViewStartM, 'minutes') / 60) * hourHeight) + 3;
     }
 

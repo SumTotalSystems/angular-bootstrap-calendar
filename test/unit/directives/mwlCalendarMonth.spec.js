@@ -13,6 +13,7 @@ describe('mwlCalendarMonth directive', function() {
     calendarHelper,
     calendarConfig,
     $templateCache,
+    clock,
     template =
       '<mwl-calendar-month ' +
       'events="events" ' +
@@ -41,7 +42,7 @@ describe('mwlCalendarMonth directive', function() {
     vm.dayViewsplit = 30;
     vm.events = [
       {
-        $id: 0,
+        calendarEventId: 0,
         title: 'An event',
         type: 'warning',
         startsAt: moment(calendarDay).startOf('week').subtract(2, 'days').add(8, 'hours').toDate(),
@@ -49,7 +50,7 @@ describe('mwlCalendarMonth directive', function() {
         draggable: true,
         resizable: true
       }, {
-        $id: 1,
+        calendarEventId: 1,
         title: '<i class="glyphicon glyphicon-asterisk"></i> <span class="text-primary">Another event</span>, with a <i>html</i> title',
         type: 'info',
         startsAt: moment(calendarDay).subtract(1, 'day').toDate(),
@@ -57,7 +58,7 @@ describe('mwlCalendarMonth directive', function() {
         draggable: true,
         resizable: true
       }, {
-        $id: 2,
+        calendarEventId: 2,
         title: 'This is a really long event title that occurs on every year',
         type: 'important',
         startsAt: moment(calendarDay).startOf('day').add(7, 'hours').toDate(),
@@ -86,6 +87,7 @@ describe('mwlCalendarMonth directive', function() {
   beforeEach(angular.mock.module('mwl.calendar'));
 
   beforeEach(angular.mock.inject(function($compile, _$rootScope_, _calendarHelper_, _calendarConfig_, _$templateCache_) {
+    clock = sinon.useFakeTimers(new Date('October 20, 2016 11:10:00').getTime());
     $rootScope = _$rootScope_;
     calendarHelper = _calendarHelper_;
     calendarConfig = _calendarConfig_;
@@ -99,6 +101,10 @@ describe('mwlCalendarMonth directive', function() {
     directiveScope = element.isolateScope();
     MwlCalendarCtrl = directiveScope.vm;
   }));
+
+  afterEach(function() {
+    clock.restore();
+  });
 
   it('should get the new month view when calendar refreshes and show the list of events for the current day if required', function() {
     var monthView = {days: [{date: moment(calendarDay), inMonth: true}], rowOffsets: []};
@@ -126,6 +132,7 @@ describe('mwlCalendarMonth directive', function() {
   it('should toggle the event list for the selected day ', function() {
 
     MwlCalendarCtrl.view = [{date: moment(calendarDay), inMonth: true}];
+    MwlCalendarCtrl.weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     //Open event list
     MwlCalendarCtrl.cellIsOpen = true;
     scope.$apply();
@@ -186,6 +193,27 @@ describe('mwlCalendarMonth directive', function() {
       calendarEvent: scope.events[0],
       calendarDate: new Date(2015, 4, 1),
       calendarNewEventStart: new Date(2015, 4, 1, 8, 0),
+      calendarNewEventEnd: null,
+      calendarDraggedFromDate: draggedFromDate
+    });
+  });
+
+  it('should apply the year, month and date modifications in the right order', function() {
+    scope.viewDate = new Date('2017-01-05');
+    scope.events = [{
+      title: 'An event',
+      type: 'warning',
+      startsAt: new Date('2017-02-01'),
+      draggable: true,
+      resizable: true
+    }];
+    scope.$apply();
+    var draggedFromDate = new Date('2017-02-01');
+    MwlCalendarCtrl.handleEventDrop(scope.events[0], new Date('2017-01-31'), draggedFromDate);
+    expect(showModal).to.have.been.calledWith('Dropped or resized', {
+      calendarEvent: scope.events[0],
+      calendarDate: new Date('2017-01-31'),
+      calendarNewEventStart: new Date('2017-01-31'),
       calendarNewEventEnd: null,
       calendarDraggedFromDate: draggedFromDate
     });

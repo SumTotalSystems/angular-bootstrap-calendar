@@ -27,7 +27,13 @@ angular
         .css('transform', transformValue);
     }
 
+    var autoScroll = $parse($attrs.autoScroll)($scope);
+    if (typeof autoScroll === 'undefined') {
+      autoScroll = true;
+    }
+
     interact($element[0]).draggable({
+      autoScroll: autoScroll,
       snap: snap,
       onstart: function(event) {
         angular.element(event.target).addClass('dragging-active');

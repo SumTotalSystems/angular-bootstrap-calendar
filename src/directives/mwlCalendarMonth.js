@@ -15,11 +15,11 @@ angular
       vm.openRowIndex = null;
       vm.openDayIndex = null;
 
-      if (vm.cellIsOpen && vm.view) {
+      if (vm.cellIsOpen && vm.view && vm.weekDays) {
         vm.view.forEach(function(day, dayIndex) {
           if (moment(vm.viewDate).startOf('day').isSame(day.date)) {
             vm.openDayIndex = dayIndex;
-            vm.openRowIndex = Math.floor(dayIndex / 7);
+            vm.openRowIndex = Math.floor(dayIndex / vm.weekDays.length);
           }
         });
       }
@@ -27,9 +27,9 @@ angular
 
     $scope.$on('calendar.refreshView', function() {
 
-      vm.weekDays = calendarHelper.getWeekDayNames();
+      vm.weekDays = calendarHelper.getWeekDayNames(vm.excludedDays);
 
-      var monthView = calendarHelper.getMonthView(vm.events, vm.viewDate, vm.cellModifier);
+      var monthView = calendarHelper.getMonthView(vm.events, vm.viewDate, vm.cellModifier, vm.excludedDays);
       vm.view = monthView.days;
       vm.monthOffsets = monthView.rowOffsets;
 
@@ -46,13 +46,6 @@ angular
       }
 
     });
-
-    if (vm.cellAutoOpenDisabled) {
-      $scope.$watchGroup([
-        'vm.cellIsOpen',
-        'vm.viewDate'
-      ], toggleCell);
-    }
 
     vm.dayClicked = function(day, dayClickedFirstRun, $event) {
 
@@ -75,7 +68,7 @@ angular
           vm.cellIsOpen = false;
         } else {
           vm.openDayIndex = dayIndex;
-          vm.openRowIndex = Math.floor(dayIndex / 7);
+          vm.openRowIndex = Math.floor(dayIndex / vm.weekDays.length);
           vm.cellIsOpen = true;
         }
       }
@@ -100,9 +93,9 @@ angular
     vm.handleEventDrop = function(event, newDayDate, draggedFromDate) {
 
       var newStart = moment(event.startsAt)
-        .date(moment(newDayDate).date())
+        .year(moment(newDayDate).year())
         .month(moment(newDayDate).month())
-        .year(moment(newDayDate).year());
+        .date(moment(newDayDate).date());
 
       var newEnd = calendarHelper.adjustEndDateFromStartDiff(event.startsAt, newStart, event.endsAt);
 
@@ -140,15 +133,32 @@ angular
     };
 
     vm.onDragSelectEnd = function(day) {
-      vm.dateRangeSelect.endDate = day.date;
-      if (vm.dateRangeSelect.endDate > vm.dateRangeSelect.startDate) {
-        vm.onDateRangeSelect({
-          calendarRangeStartDate: vm.dateRangeSelect.startDate.clone().startOf('day').toDate(),
-          calendarRangeEndDate: vm.dateRangeSelect.endDate.clone().endOf('day').toDate()
-        });
+      if (vm.dateRangeSelect) {
+        vm.dateRangeSelect.endDate = day.date;
+        if (vm.dateRangeSelect.endDate > vm.dateRangeSelect.startDate) {
+          vm.onDateRangeSelect({
+            calendarRangeStartDate: vm.dateRangeSelect.startDate.clone().startOf('day').toDate(),
+            calendarRangeEndDate: vm.dateRangeSelect.endDate.clone().endOf('day').toDate()
+          });
+        }
+        delete vm.dateRangeSelect;
       }
-      delete vm.dateRangeSelect;
     };
+
+    vm.$onInit = function() {
+
+      if (vm.cellAutoOpenDisabled) {
+        $scope.$watchGroup([
+          'vm.cellIsOpen',
+          'vm.viewDate'
+        ], toggleCell);
+      }
+
+    };
+
+    if (angular.version.minor < 5) {
+      vm.$onInit();
+    }
 
   })
   .directive('mwlCalendarMonth', function() {
@@ -160,6 +170,7 @@ angular
       scope: {
         events: '=',
         viewDate: '=',
+        excludedDays: '=',
         onEventClick: '=',
         onEventTimesChanged: '=',
         onDateRangeSelect: '=',
@@ -170,6 +181,7 @@ angular
         slideBoxDisabled: '=',
         customTemplateUrls: '=?',
         templateScope: '=',
+        draggableAutoScroll: '='
       },
       controller: 'MwlCalendarMonthCtrl as vm',
       link: function(scope, element, attrs, calendarCtrl) {

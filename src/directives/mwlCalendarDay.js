@@ -11,11 +11,16 @@ angular
     vm.calendarEventTitle = calendarEventTitle;
 
     function refreshView() {
+
+      vm.timeHidden = vm.dayViewTimePosition === 'hidden';
+      vm.dayViewTimePositionOffset = vm.dayViewTimePosition !== 'default' ? 0 : 60;
+
       vm.dayViewSplit = vm.dayViewSplit || 30;
       vm.dayViewHeight = calendarHelper.getDayViewHeight(
         vm.dayViewStart,
         vm.dayViewEnd,
-        vm.dayViewSplit
+        vm.dayViewSplit,
+        vm.dayViewSegmentSize
       );
 
       var view = calendarHelper.getDayView(
@@ -23,7 +28,9 @@ angular
         vm.viewDate,
         vm.dayViewStart,
         vm.dayViewEnd,
-        vm.dayViewSplit
+        vm.dayViewSplit,
+        vm.dayViewEventWidth,
+        vm.dayViewSegmentSize
       );
 
       vm.allDayEvents = view.allDayEvents;
@@ -101,9 +108,13 @@ angular
         dayViewEnd: '=',
         dayViewSplit: '=',
         dayViewEventChunkSize: '=',
+        dayViewSegmentSize: '=',
+        dayViewEventWidth: '=',
         customTemplateUrls: '=?',
         cellModifier: '=',
-        templateScope: '='
+        templateScope: '=',
+        dayViewTimePosition: '=',
+        draggableAutoScroll: '='
       },
       controller: 'MwlCalendarDayCtrl as vm',
       bindToController: true
