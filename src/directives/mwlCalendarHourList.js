@@ -5,8 +5,36 @@ var calendarUtils = require('calendar-utils');
 
 angular
   .module('mwl.calendar')
-  .controller('MwlCalendarHourListCtrl', function($scope, $attrs, moment, calendarHelper) {
+  .controller('MwlCalendarHourListCtrl', function($scope, $document, moment, calendarHelper) {
     var vm = this;
+
+    // source: http://stackoverflow.com/questions/13382516/getting-scroll-bar-width-using-javascript
+    function getScrollbarWidth() {
+      var outer = $document[0].createElement('div');
+      outer.style.visibility = 'hidden';
+      outer.style.width = '100px';
+      outer.style.msOverflowStyle = 'scrollbar'; // needed for WinJS apps
+
+      $document[0].body.appendChild(outer);
+
+      var widthNoScroll = outer.offsetWidth;
+      // force scrollbars
+      outer.style.overflow = 'scroll';
+
+      // add innerdiv
+      var inner = $document[0].createElement('div');
+      inner.style.width = '100%';
+      outer.appendChild(inner);
+
+      var widthWithScroll = inner.offsetWidth;
+
+      // remove divs
+      outer.parentNode.removeChild(outer);
+
+      return widthNoScroll - widthWithScroll;
+    }
+
+    vm.scrollBarWidth = getScrollbarWidth();
 
     function updateDays() {
 
@@ -14,7 +42,7 @@ angular
       var dayStart = (vm.dayViewStart || '00:00').split(':');
       var dayEnd = (vm.dayViewEnd || '23:59').split(':');
       vm.hourGrid = calendarUtils.getDayViewHourGrid({
-        viewDate: $attrs.dayWidth ? moment(vm.viewDate).startOf('week').toDate() : moment(vm.viewDate).toDate(),
+        viewDate: vm.view === 'week' ? moment(vm.viewDate).startOf('week').toDate() : moment(vm.viewDate).toDate(),
         hourSegments: 60 / vm.dayViewSplit,
         dayStart: {
           hour: dayStart[0],
@@ -28,7 +56,27 @@ angular
 
       vm.hourGrid.forEach(function(hour) {
         hour.segments.forEach(function(segment) {
-          vm.cellModifier({calendarCell: segment});
+
+          segment.date = moment(segment.date);
+          segment.nextSegmentDate = segment.date.clone().add(vm.dayViewSplit, 'minutes');
+
+          if (vm.view === 'week') {
+
+            segment.days = [];
+
+            for (var i = 0; i < 7; i++) {
+              var day = {
+                date: moment(segment.date).add(i, 'days')
+              };
+              day.nextSegmentDate = day.date.clone().add(vm.dayViewSplit, 'minutes');
+              vm.cellModifier({calendarCell: day});
+              segment.days.push(day);
+            }
+
+          } else {
+            vm.cellModifier({calendarCell: segment});
+          }
+
         });
       });
 
@@ -66,10 +114,6 @@ angular
       });
     };
 
-    vm.getClickedDate = function(baseDate, minutes, days) {
-      return moment(baseDate).clone().startOf('hour').add(minutes, 'minutes').add(days || 0, 'days').toDate();
-    };
-
     vm.onDragSelectStart = function(date, dayIndex) {
       if (!vm.dateRangeSelect) {
         vm.dateRangeSelect = {
@@ -88,11 +132,16 @@ angular
     };
 
     vm.onDragSelectEnd = function(date) {
-      vm.dateRangeSelect.endDate = date;
-      if (vm.dateRangeSelect.endDate > vm.dateRangeSelect.startDate) {
-        vm.onDateRangeSelect({calendarRangeStartDate: vm.dateRangeSelect.startDate, calendarRangeEndDate: vm.dateRangeSelect.endDate});
+      if (vm.dateRangeSelect) {
+        vm.dateRangeSelect.endDate = date;
+        if (vm.dateRangeSelect.endDate > vm.dateRangeSelect.startDate) {
+          vm.onDateRangeSelect({
+            calendarRangeStartDate: vm.dateRangeSelect.startDate.toDate(),
+            calendarRangeEndDate: vm.dateRangeSelect.endDate.toDate()
+          });
+        }
+        delete vm.dateRangeSelect;
       }
-      delete vm.dateRangeSelect;
     };
 
   })
@@ -113,7 +162,8 @@ angular
         onEventTimesChanged: '=',
         customTemplateUrls: '=?',
         cellModifier: '=',
-        templateScope: '='
+        templateScope: '=',
+        view: '@'
       },
       bindToController: true
     };

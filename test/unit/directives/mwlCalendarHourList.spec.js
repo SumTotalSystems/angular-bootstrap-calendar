@@ -18,6 +18,8 @@ describe('mwlCalendarHourList directive', function() {
         'day-view-split="dayViewSplit || 30" ' +
         'on-event-times-changed="eventDropped(calendarEvent, calendarDate, calendarNewEventStart, calendarNewEventEnd)" ' +
         'cell-modifier="cellModifier"' +
+        'day-width="dayWidth"' +
+        'view="{{ view }}"' +
       '></mwl-calendar-hour-list>';
 
   function prepareScope(vm) {
@@ -26,6 +28,7 @@ describe('mwlCalendarHourList directive', function() {
     vm.dayViewEnd = '22:59';
     vm.dayViewsplit = 30;
     vm.cellModifier = sinon.stub();
+    vm.view = 'day';
 
     showModal = sinon.spy();
 
@@ -120,27 +123,27 @@ describe('mwlCalendarHourList directive', function() {
 
   it('should call the onDateRangeSelect callback if there is a valid date range', function() {
     MwlCalendarCtrl.onDateRangeSelect = sinon.spy();
-    var date1 = new Date();
-    var date2 = new Date(Date.now() + 100000);
+    var date1 = moment();
+    var date2 = moment(Date.now() + 100000);
     MwlCalendarCtrl.dateRangeSelect = {
       startDate: date1,
-      endDate: new Date(Date.now() + 10)
+      endDate: moment(Date.now() + 10)
     };
     MwlCalendarCtrl.onDragSelectEnd(date2);
     expect(MwlCalendarCtrl.onDateRangeSelect).to.have.been.calledWith({
-      calendarRangeStartDate: date1,
-      calendarRangeEndDate: date2
+      calendarRangeStartDate: date1.toDate(),
+      calendarRangeEndDate: date2.toDate()
     });
     expect(MwlCalendarCtrl.dateRangeSelect).to.be.undefined;
   });
 
   it('should not call the onDateRangeSelect callback if there is an invalid date range', function() {
     MwlCalendarCtrl.onDateRangeSelect = sinon.spy();
-    var date1 = new Date();
-    var date2 = new Date(Date.now() - 100000);
+    var date1 = moment();
+    var date2 = moment(Date.now() - 100000);
     MwlCalendarCtrl.dateRangeSelect = {
       startDate: date1,
-      endDate: new Date(Date.now() - 10)
+      endDate: moment(Date.now() - 10)
     };
     MwlCalendarCtrl.onDragSelectEnd(date2);
     expect(MwlCalendarCtrl.onDateRangeSelect).not.to.have.been.called;
@@ -155,8 +158,28 @@ describe('mwlCalendarHourList directive', function() {
     scope.$apply();
     scope.$broadcast('calendar.refreshView');
     scope.$apply();
-    expect(element[0].querySelector('.cal-day-hour-part.foo')).to.be.ok;
     moment.locale.restore();
+    expect(element[0].querySelector('.cal-day-hour-part.foo')).to.be.ok;
+  });
+
+  it('should allow the week view with times day segments CSS classes to be customised', function() {
+    scope.view = 'week';
+    scope.dayWidth = 50;
+    sinon.stub(moment, 'locale').returns('another locale');
+    scope.cellModifier = function(args) {
+      args.calendarCell.cssClass = 'foo';
+    };
+    scope.$apply();
+    scope.$broadcast('calendar.refreshView');
+    scope.$apply();
+    moment.locale.restore();
+    expect(element[0].querySelector('.cal-day-hour-part-spacer.foo')).to.be.ok;
+  });
+
+  it('should not throw if there is no current range being selected', function() {
+    expect(function() {
+      MwlCalendarCtrl.onDragSelectEnd(new Date());
+    }).not.to.throw();
   });
 
 });
