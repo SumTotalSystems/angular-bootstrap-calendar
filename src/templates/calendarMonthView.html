@@ -12,8 +12,7 @@
         ng-init="dayIndex = vm.view.indexOf(day)"
         class="cal-cell1 cal-cell {{ day.highlightClass }}"
         ng-style="{backgroundColor: day.backgroundColor}"
-        ng-class="{pointer: day.events.length > 0}"
-        role="none" tabindex="-1">
+        ng-class="{pointer: day.events.length > 0}">
         <ng-include src="vm.customTemplateUrls.calendarMonthCell || vm.calendarConfig.templates.calendarMonthCell"></ng-include>
       </div>
     </div>
