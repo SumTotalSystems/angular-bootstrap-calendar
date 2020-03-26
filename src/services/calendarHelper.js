@@ -164,6 +164,7 @@ angular
 
       view.days = view.days.map(function(day) {
         day.date = moment(day.date);
+		day.fullDate = moment(day.date).format('dddd Do MMMM YYYY');
         day.label = day.date.date();
         day.badgeTotal = getBadgeTotal(day.events);
         if (!calendarConfig.displayAllMonthEvents && !day.inMonth) {
